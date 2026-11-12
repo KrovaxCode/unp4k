@@ -259,7 +259,21 @@ namespace unforge
 							
 							var dataMapping = this.StreamReader.ReadDataMappingAtIndex(pointer.StructIndex);
 
-							return this.StreamReader.ReadStructAtIndexAsXml(parentNode.OwnerDocument.CreateElement(dataMapping.Name), pointer.StructIndex, pointer.VariantIndex);
+							// Weak pointers reference instances owned elsewhere, so they can form graphs (e.g. sibling
+							// MissionProperties excluding each other). StructStack only guards the current path, which
+							// stops infinite loops but still re-expands every possible path. Only inline one level.
+							if (!this.StreamReader.FollowWeakPointers) return parentNode.CreateElementWithValue(dataMapping.Name, String.Format("{0}[{1:X4}]", dataMapping.Name, pointer.VariantIndex));
+
+							this.StreamReader.WeakPointerDepth++;
+
+							try
+							{
+								return this.StreamReader.ReadStructAtIndexAsXml(parentNode.OwnerDocument.CreateElement(dataMapping.Name), pointer.StructIndex, pointer.VariantIndex);
+							}
+							finally
+							{
+								this.StreamReader.WeakPointerDepth--;
+							}
 						}
 					case EDataType.varStrongPointer:
 						{

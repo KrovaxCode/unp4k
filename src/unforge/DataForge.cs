@@ -16,7 +16,10 @@ namespace unforge
 	{
 		public Boolean IsLegacy;
 		public Boolean FollowReferences { get => DataForge.MaxReferenceDepth > this.StructStack.Count; }
-		public Boolean FollowWeakPointers { get; } = false;
+		public Boolean FollowWeakPointers { get => DataForge.MaxWeakPointerDepth > this.WeakPointerDepth; }
+		public Int32 WeakPointerDepth { get; set; } = 0;
+
+		public static Int32 MaxWeakPointerDepth { get; set; } = 1;
 		public Boolean FollowStrongPointers { get => DataForge.MaxPointerDepth > this.RecordStack.Count; }
 
 		public static Int32 MaxReferenceDepth { get; set; } = 1;
