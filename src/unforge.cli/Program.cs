@@ -12,6 +12,11 @@ namespace unforge.cli
 			System.Threading.Thread.CurrentThread.CurrentCulture = ci;
 			System.Threading.Thread.CurrentThread.CurrentUICulture = ci;
 
+			// Optional: number of worker threads for .dcb conversion (1 = sequential).
+			if (Int32.TryParse(Environment.GetEnvironmentVariable("UNFORGE_THREADS"), out var threads) && threads > 0)
+			{
+				DataForge.MaxDegreeOfParallelism = threads;
+			}
 
 			if (args.Length == 0)
 			{

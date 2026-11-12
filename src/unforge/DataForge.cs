@@ -1,6 +1,7 @@
 ﻿using Dolkens.Framework.BinaryExtensions;
 using System;
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -8,6 +9,8 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace unforge
@@ -925,27 +928,77 @@ namespace unforge
 			CheckCharacters = false
 		};
 
+		/// <summary>
+		/// Number of worker threads used by <see cref="Save"/>. 1 = sequential.
+		/// </summary>
+		public static Int32 MaxDegreeOfParallelism { get; set; } = Environment.ProcessorCount;
+
 		public void Save(String filename)
 		{
-			foreach (var fileReference in this.PathToRecordMap.Keys)
+			var outputDirectory = Path.GetDirectoryName(filename);
+			var fileReferences = this.PathToRecordMap.Keys.ToArray();
+
+			// Records are independent, but a reader is stateful (Position, StructStack, caches).
+			// Parallel only when the whole file is in memory: every worker then gets its own
+			// reader over the shared, read-only buffer. Otherwise keep the sequential path.
+			if (DataForge.MaxDegreeOfParallelism <= 1
+				|| !(this.BaseStream is MemoryStream memoryStream)
+				|| !memoryStream.TryGetBuffer(out var buffer))
 			{
-				var node = this.ReadRecordByPathAsXml(fileReference);
-
-				if (node == null) continue;
-
-				var newPath = Path.Combine(Path.GetDirectoryName(filename), fileReference);
-
-				if (!Directory.Exists(Path.GetDirectoryName(newPath))) Directory.CreateDirectory(Path.GetDirectoryName(newPath));
-
-
-				// File.Create instead of File.OpenWrite: OpenWrite does not truncate existing files,
-				// so a shorter output would keep stale bytes at the end.
-				using (var fileStream = File.Create(newPath))
-				using (var writer = XmlWriter.Create(fileStream, _xmlSettings))
+				foreach (var fileReference in fileReferences)
 				{
-					node.WriteTo(writer);
-					writer.Flush();
+					this.SaveRecord(outputDirectory, fileReference);
 				}
+
+				return;
+			}
+
+			// Values are formatted with the current culture. Pool threads do not inherit the
+			// caller's culture (unforge.cli sets InvariantCulture on its main thread only),
+			// so pass it on explicitly to keep the output identical to the sequential path.
+			var culture = Thread.CurrentThread.CurrentCulture;
+			var uiCulture = Thread.CurrentThread.CurrentUICulture;
+
+			using (var workers = new ThreadLocal<DataForge>(
+				() => new DataForge(new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, writable: false, publiclyVisible: true)),
+				trackAllValues: true))
+			{
+				// Dynamic partitioning: record sizes range from bytes to megabytes.
+				Parallel.ForEach(
+					Partitioner.Create(fileReferences, loadBalance: true),
+					new ParallelOptions { MaxDegreeOfParallelism = DataForge.MaxDegreeOfParallelism },
+					fileReference =>
+					{
+						Thread.CurrentThread.CurrentCulture = culture;
+						Thread.CurrentThread.CurrentUICulture = uiCulture;
+
+						workers.Value.SaveRecord(outputDirectory, fileReference);
+					});
+
+				foreach (var worker in workers.Values)
+				{
+					worker.Dispose();
+				}
+			}
+		}
+
+		private void SaveRecord(String outputDirectory, String fileReference)
+		{
+			var node = this.ReadRecordByPathAsXml(fileReference);
+
+			if (node == null) return;
+
+			var newPath = Path.Combine(outputDirectory, fileReference);
+
+			if (!Directory.Exists(Path.GetDirectoryName(newPath))) Directory.CreateDirectory(Path.GetDirectoryName(newPath));
+
+			// File.Create instead of File.OpenWrite: OpenWrite does not truncate existing files,
+			// so a shorter output would keep stale bytes at the end.
+			using (var fileStream = File.Create(newPath))
+			using (var writer = XmlWriter.Create(fileStream, _xmlSettings))
+			{
+				node.WriteTo(writer);
+				writer.Flush();
 			}
 		}
 	}
