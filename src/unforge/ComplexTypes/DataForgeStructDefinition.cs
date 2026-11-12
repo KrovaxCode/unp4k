@@ -56,17 +56,29 @@ namespace unforge
 			}
 		}
 
+		// Needed for every struct value; hierarchy and properties are immutable, so build once.
+		private DataForgePropertyDefinition[] _propertyDefinitions;
+
 		public IEnumerable<DataForgePropertyDefinition> PropertyDefinitions
 		{
 			get
 			{
-				foreach (var dataStruct in this.Hierarchy)
+				if (this._propertyDefinitions == null)
 				{
-					for (var propertyIndex = dataStruct.FirstPropertyIndex; propertyIndex < dataStruct.FirstPropertyIndex + dataStruct.PropertyCount; propertyIndex++)
+					var list = new List<DataForgePropertyDefinition> { };
+
+					foreach (var dataStruct in this.Hierarchy)
 					{
-						yield return this.StreamReader.ReadPropertyDefinitionAtIndex(propertyIndex);
+						for (var propertyIndex = dataStruct.FirstPropertyIndex; propertyIndex < dataStruct.FirstPropertyIndex + dataStruct.PropertyCount; propertyIndex++)
+						{
+							list.Add(this.StreamReader.ReadPropertyDefinitionAtIndex(propertyIndex));
+						}
 					}
+
+					this._propertyDefinitions = list.ToArray();
 				}
+
+				return this._propertyDefinitions;
 			}
 		}
 

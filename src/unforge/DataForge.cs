@@ -64,33 +64,66 @@ namespace unforge
 		public UInt32 TextLength { get; }
 		public UInt32 BlobLength { get; }
 
-		private Int64 StructDefinitionOffset { get => this.IsLegacy ? 0x74 : 0x78; }
-		public Int64 PropertyDefinitionOffset { get => this.StructDefinitionOffset + this.StructDefinitionCount * DataForgeStructDefinition.RecordSizeInBytes; }
-		public Int64 EnumDefinitionOffset { get => this.PropertyDefinitionOffset + this.PropertyDefinitionCount * DataForgePropertyDefinition.RecordSizeInBytes; }
-		public Int64 DataMappingOffset { get => this.EnumDefinitionOffset + this.EnumDefinitionCount * DataForgeEnumDefinition.RecordSizeInBytes; }
-		public Int64 RecordDefinitionOffset { get => this.DataMappingOffset + this.DataMappingCount * (this.IsLegacy ? DataForgeDataMapping.RecordSizeInBytes : DataForgeDataMapping.RecordSizeInBytesV6); }
-		public Int64 Int8ValueOffset { get => this.RecordDefinitionOffset + this.RecordDefinitionCount * (this.FileVersion < 8 ? DataForgeRecordDefinition.RecordSizeInBytes : DataForgeRecordDefinition.RecordSizeInBytesV8); }
-		public Int64 Int16ValueOffset { get => this.Int8ValueOffset + this.Int8ValueCount * DataForgeInt8.RecordSizeInBytes; }
-		public Int64 Int32ValueOffset { get => this.Int16ValueOffset + this.Int16ValueCount * DataForgeInt16.RecordSizeInBytes; }
-		public Int64 Int64ValueOffset { get => this.Int32ValueOffset + this.Int32ValueCount * DataForgeInt32.RecordSizeInBytes; }
-		public Int64 UInt8ValueOffset { get => this.Int64ValueOffset + this.Int64ValueCount * DataForgeInt64.RecordSizeInBytes; }
-		public Int64 UInt16ValueOffset { get => this.UInt8ValueOffset + this.UInt8ValueCount * DataForgeUInt8.RecordSizeInBytes; }
-		public Int64 UInt32ValueOffset { get => this.UInt16ValueOffset + this.UInt16ValueCount * DataForgeUInt16.RecordSizeInBytes; }
-		public Int64 UInt64ValueOffset { get => this.UInt32ValueOffset + this.UInt32ValueCount * DataForgeUInt32.RecordSizeInBytes; }
-		public Int64 BooleanValueOffset { get => this.UInt64ValueOffset + this.UInt64ValueCount * DataForgeUInt64.RecordSizeInBytes; }
-		public Int64 SingleValueOffset { get => this.BooleanValueOffset + this.BooleanValueCount * DataForgeBoolean.RecordSizeInBytes; }
-		public Int64 DoubleValueOffset { get => this.SingleValueOffset + this.SingleValueCount * DataForgeSingle.RecordSizeInBytes; }
-		public Int64 GuidValueOffset { get => this.DoubleValueOffset + this.DoubleValueCount * DataForgeDouble.RecordSizeInBytes; }
-		public Int64 StringValueOffset { get => this.GuidValueOffset + this.GuidValueCount * DataForgeGuid.RecordSizeInBytes; }
-		public Int64 LocaleValueOffset { get => this.StringValueOffset + this.StringValueCount * DataForgeStringLookup.RecordSizeInBytes; }
-		public Int64 EnumValueOffset { get => this.LocaleValueOffset + this.LocaleValueCount * DataForgeLocale.RecordSizeInBytes; }
-		public Int64 StrongValueOffset { get => this.EnumValueOffset + this.EnumValueCount * DataForgeEnum.RecordSizeInBytes; }
-		public Int64 WeakValueOffset { get => this.StrongValueOffset + this.StrongValueCount * DataForgePointer.RecordSizeInBytes; }
-		public Int64 ReferenceValueOffset { get => this.WeakValueOffset + this.WeakValueCount * DataForgePointer.RecordSizeInBytes; }
-		public Int64 EnumOptionOffset { get => this.ReferenceValueOffset + this.ReferenceValueCount * DataForgeReference.RecordSizeInBytes; }
-		public Int64 TextOffset { get => this.EnumOptionOffset + this.EnumOptionCount * DataForgeStringLookup.RecordSizeInBytes; }
-		public Int64 BlobOffset { get => this.TextOffset + this.TextLength; }
-		public Int64 DataOffset { get => this.BlobOffset + this.BlobLength; }
+		private Int64 StructDefinitionOffset { get; set; }
+		public Int64 PropertyDefinitionOffset { get; private set; }
+		public Int64 EnumDefinitionOffset { get; private set; }
+		public Int64 DataMappingOffset { get; private set; }
+		public Int64 RecordDefinitionOffset { get; private set; }
+		public Int64 Int8ValueOffset { get; private set; }
+		public Int64 Int16ValueOffset { get; private set; }
+		public Int64 Int32ValueOffset { get; private set; }
+		public Int64 Int64ValueOffset { get; private set; }
+		public Int64 UInt8ValueOffset { get; private set; }
+		public Int64 UInt16ValueOffset { get; private set; }
+		public Int64 UInt32ValueOffset { get; private set; }
+		public Int64 UInt64ValueOffset { get; private set; }
+		public Int64 BooleanValueOffset { get; private set; }
+		public Int64 SingleValueOffset { get; private set; }
+		public Int64 DoubleValueOffset { get; private set; }
+		public Int64 GuidValueOffset { get; private set; }
+		public Int64 StringValueOffset { get; private set; }
+		public Int64 LocaleValueOffset { get; private set; }
+		public Int64 EnumValueOffset { get; private set; }
+		public Int64 StrongValueOffset { get; private set; }
+		public Int64 WeakValueOffset { get; private set; }
+		public Int64 ReferenceValueOffset { get; private set; }
+		public Int64 EnumOptionOffset { get; private set; }
+		public Int64 TextOffset { get; private set; }
+		public Int64 BlobOffset { get; private set; }
+		public Int64 DataOffset { get; private set; }
+
+		// Compute table offsets once instead of walking the whole getter chain on every access
+		// (DataOffset used to call ~27 chained getters for every value read).
+		private void ComputeOffsets()
+		{
+			this.StructDefinitionOffset = this.IsLegacy ? 0x74 : 0x78;
+			this.PropertyDefinitionOffset = this.StructDefinitionOffset + this.StructDefinitionCount * DataForgeStructDefinition.RecordSizeInBytes;
+			this.EnumDefinitionOffset = this.PropertyDefinitionOffset + this.PropertyDefinitionCount * DataForgePropertyDefinition.RecordSizeInBytes;
+			this.DataMappingOffset = this.EnumDefinitionOffset + this.EnumDefinitionCount * DataForgeEnumDefinition.RecordSizeInBytes;
+			this.RecordDefinitionOffset = this.DataMappingOffset + this.DataMappingCount * (this.IsLegacy ? DataForgeDataMapping.RecordSizeInBytes : DataForgeDataMapping.RecordSizeInBytesV6);
+			this.Int8ValueOffset = this.RecordDefinitionOffset + this.RecordDefinitionCount * (this.FileVersion < 8 ? DataForgeRecordDefinition.RecordSizeInBytes : DataForgeRecordDefinition.RecordSizeInBytesV8);
+			this.Int16ValueOffset = this.Int8ValueOffset + this.Int8ValueCount * DataForgeInt8.RecordSizeInBytes;
+			this.Int32ValueOffset = this.Int16ValueOffset + this.Int16ValueCount * DataForgeInt16.RecordSizeInBytes;
+			this.Int64ValueOffset = this.Int32ValueOffset + this.Int32ValueCount * DataForgeInt32.RecordSizeInBytes;
+			this.UInt8ValueOffset = this.Int64ValueOffset + this.Int64ValueCount * DataForgeInt64.RecordSizeInBytes;
+			this.UInt16ValueOffset = this.UInt8ValueOffset + this.UInt8ValueCount * DataForgeUInt8.RecordSizeInBytes;
+			this.UInt32ValueOffset = this.UInt16ValueOffset + this.UInt16ValueCount * DataForgeUInt16.RecordSizeInBytes;
+			this.UInt64ValueOffset = this.UInt32ValueOffset + this.UInt32ValueCount * DataForgeUInt32.RecordSizeInBytes;
+			this.BooleanValueOffset = this.UInt64ValueOffset + this.UInt64ValueCount * DataForgeUInt64.RecordSizeInBytes;
+			this.SingleValueOffset = this.BooleanValueOffset + this.BooleanValueCount * DataForgeBoolean.RecordSizeInBytes;
+			this.DoubleValueOffset = this.SingleValueOffset + this.SingleValueCount * DataForgeSingle.RecordSizeInBytes;
+			this.GuidValueOffset = this.DoubleValueOffset + this.DoubleValueCount * DataForgeDouble.RecordSizeInBytes;
+			this.StringValueOffset = this.GuidValueOffset + this.GuidValueCount * DataForgeGuid.RecordSizeInBytes;
+			this.LocaleValueOffset = this.StringValueOffset + this.StringValueCount * DataForgeStringLookup.RecordSizeInBytes;
+			this.EnumValueOffset = this.LocaleValueOffset + this.LocaleValueCount * DataForgeLocale.RecordSizeInBytes;
+			this.StrongValueOffset = this.EnumValueOffset + this.EnumValueCount * DataForgeEnum.RecordSizeInBytes;
+			this.WeakValueOffset = this.StrongValueOffset + this.StrongValueCount * DataForgePointer.RecordSizeInBytes;
+			this.ReferenceValueOffset = this.WeakValueOffset + this.WeakValueCount * DataForgePointer.RecordSizeInBytes;
+			this.EnumOptionOffset = this.ReferenceValueOffset + this.ReferenceValueCount * DataForgeReference.RecordSizeInBytes;
+			this.TextOffset = this.EnumOptionOffset + this.EnumOptionCount * DataForgeStringLookup.RecordSizeInBytes;
+			this.BlobOffset = this.TextOffset + this.TextLength;
+			this.DataOffset = this.BlobOffset + this.BlobLength;
+		}
 
 		public DataForge(Stream stream) : base(stream)
 		{
@@ -139,6 +172,8 @@ namespace unforge
 			this.TextLength = this.ReadUInt32();
 			this.BlobLength = this.IsLegacy ? 0 : this.ReadUInt32();
 
+			this.ComputeOffsets();
+
 			this.PathToRecordMap = new Dictionary<String, Int32> { };
 			this.ReferenceToRecordMap = new Dictionary<Guid, Int32> { };
 
@@ -186,9 +221,16 @@ namespace unforge
 
 		internal String ReadEnumAtOffset(UInt32 enumValueOffset) => this.ReadTextAtOffset(enumValueOffset);
 
+		// Text and blob tables are immutable: decode each offset only once.
+		// Struct and property names come from the blob table and are read for every value.
+		private readonly Dictionary<Int64, String> _textCache = new Dictionary<Int64, String> { };
+		private readonly Dictionary<Int64, String> _blobCache = new Dictionary<Int64, String> { };
+
 		internal String ReadTextAtOffset(Int64 offset)
 		{
 			if (offset > this.TextLength) throw new IndexOutOfRangeException($"Offset {offset} is out of range for Text values (length: {this.TextLength})");
+
+			if (this._textCache.TryGetValue(offset, out var cached)) return cached;
 
 			var position = this.Position;
 
@@ -196,7 +238,9 @@ namespace unforge
 			{
 				this.Position = this.TextOffset + offset;
 
-				return this.ReadCString();
+				var value = this.ReadCString();
+				this._textCache[offset] = value;
+				return value;
 			}
 			finally
 			{
@@ -210,13 +254,17 @@ namespace unforge
 
 			if (offset > this.BlobLength) throw new IndexOutOfRangeException($"Offset {offset} is out of range for Blob values (length: {this.TextLength})");
 
+			if (this._blobCache.TryGetValue(offset, out var cached)) return cached;
+
 			var position = this.Position;
 
 			try
 			{
 				this.Position = this.BlobOffset + offset;
 
-				return this.ReadCString();
+				var value = this.ReadCString();
+				this._blobCache[offset] = value;
+				return value;
 			}
 			finally
 			{
@@ -224,9 +272,14 @@ namespace unforge
 			}
 		}
 
+		// Definitions are immutable (only set in their constructors): read each one once.
+		private readonly Dictionary<Int64, DataForgeDataMapping> _dataMappingCache = new Dictionary<Int64, DataForgeDataMapping> { };
+
 		internal DataForgeDataMapping ReadDataMappingAtIndex(Int64 index)
 		{
 			if (index > this.DataMappingCount) throw new IndexOutOfRangeException($"Index {index} is out of range for Data Mapping values (count: {this.DataMappingCount})");
+
+			if (this._dataMappingCache.TryGetValue(index, out var cached)) return cached;
 
 			var position = this.Position;
 
@@ -234,7 +287,9 @@ namespace unforge
 			{
 				this.Position = this.DataMappingOffset + index * (this.IsLegacy ? DataForgeDataMapping.RecordSizeInBytes : DataForgeDataMapping.RecordSizeInBytesV6);
 
-				return DataForgeDataMapping.ReadFromStream(this);
+				var value = DataForgeDataMapping.ReadFromStream(this);
+				this._dataMappingCache[index] = value;
+				return value;
 			}
 			finally
 			{
@@ -242,9 +297,14 @@ namespace unforge
 			}
 		}
 
+		// Definitions are immutable (only set in their constructors): read each one once.
+		private readonly Dictionary<Int64, DataForgeRecordDefinition> _recordDefinitionCache = new Dictionary<Int64, DataForgeRecordDefinition> { };
+
 		internal DataForgeRecordDefinition ReadRecordDefinitionAtIndex(Int64 index)
 		{
 			if (index > this.RecordDefinitionCount) throw new IndexOutOfRangeException($"Index {index} is out of range for Record Definition values (count: {this.RecordDefinitionCount})");
+
+			if (this._recordDefinitionCache.TryGetValue(index, out var cached)) return cached;
 
 			var position = this.Position;
 
@@ -252,7 +312,9 @@ namespace unforge
 			{
 				this.Position = this.RecordDefinitionOffset + index * (this.FileVersion < 8 ? DataForgeRecordDefinition.RecordSizeInBytes : DataForgeRecordDefinition.RecordSizeInBytesV8);
 
-				return DataForgeRecordDefinition.ReadFromStream(this);
+				var value = DataForgeRecordDefinition.ReadFromStream(this);
+				this._recordDefinitionCache[index] = value;
+				return value;
 			}
 			finally
 			{
@@ -314,9 +376,14 @@ namespace unforge
 			return xmlNode;
 		}
 
+		// Definitions are immutable (only set in their constructors): read each one once.
+		private readonly Dictionary<Int64, DataForgeStructDefinition> _structDefinitionCache = new Dictionary<Int64, DataForgeStructDefinition> { };
+
 		internal DataForgeStructDefinition ReadStructDefinitionAtIndex(Int64 index)
 		{
 			if (index > this.StructDefinitionCount) throw new IndexOutOfRangeException($"Index {index} is out of range for Struct Definition values (count: {this.StructDefinitionCount})");
+
+			if (this._structDefinitionCache.TryGetValue(index, out var cached)) return cached;
 
 			var position = this.Position;
 
@@ -324,7 +391,9 @@ namespace unforge
 			{
 				this.Position = this.StructDefinitionOffset + index * DataForgeStructDefinition.RecordSizeInBytes;
 
-				return DataForgeStructDefinition.ReadFromStream(this);
+				var value = DataForgeStructDefinition.ReadFromStream(this);
+				this._structDefinitionCache[index] = value;
+				return value;
 			}
 			finally
 			{
@@ -332,9 +401,14 @@ namespace unforge
 			}
 		}
 
+		// Definitions are immutable (only set in their constructors): read each one once.
+		private readonly Dictionary<Int64, DataForgePropertyDefinition> _propertyDefinitionCache = new Dictionary<Int64, DataForgePropertyDefinition> { };
+
 		internal DataForgePropertyDefinition ReadPropertyDefinitionAtIndex(Int64 index)
 		{
 			if (index > this.PropertyDefinitionCount) throw new IndexOutOfRangeException($"Index {index} is out of range for Property Definition values (count: {this.PropertyDefinitionCount})");
+
+			if (this._propertyDefinitionCache.TryGetValue(index, out var cached)) return cached;
 
 			var position = this.Position;
 
@@ -342,7 +416,9 @@ namespace unforge
 			{
 				this.Position = this.PropertyDefinitionOffset + index * DataForgePropertyDefinition.RecordSizeInBytes;
 
-				return DataForgePropertyDefinition.ReadFromStream(this);
+				var value = DataForgePropertyDefinition.ReadFromStream(this);
+				this._propertyDefinitionCache[index] = value;
+				return value;
 			}
 			finally
 			{
@@ -404,9 +480,14 @@ namespace unforge
 			}
 		}
 
+		// Definitions are immutable (only set in their constructors): read each one once.
+		private readonly Dictionary<Int64, DataForgeEnumDefinition> _enumDefinitionCache = new Dictionary<Int64, DataForgeEnumDefinition> { };
+
 		internal DataForgeEnumDefinition ReadEnumDefinitionAtIndex(Int64 index)
 		{
 			if (index > this.EnumValueCount) throw new IndexOutOfRangeException($"Index {index} is out of range for Enum values (count: {this.EnumDefinitionCount})");
+
+			if (this._enumDefinitionCache.TryGetValue(index, out var cached)) return cached;
 
 			var position = this.Position;
 
@@ -414,7 +495,9 @@ namespace unforge
 			{
 				this.Position = this.EnumDefinitionOffset + index * DataForgeEnumDefinition.RecordSizeInBytes;
 
-				return DataForgeEnumDefinition.ReadFromStream(this);
+				var value = DataForgeEnumDefinition.ReadFromStream(this);
+				this._enumDefinitionCache[index] = value;
+				return value;
 			}
 			finally
 			{
@@ -855,7 +938,9 @@ namespace unforge
 				if (!Directory.Exists(Path.GetDirectoryName(newPath))) Directory.CreateDirectory(Path.GetDirectoryName(newPath));
 
 
-				using (var fileStream= File.OpenWrite(newPath))
+				// File.Create instead of File.OpenWrite: OpenWrite does not truncate existing files,
+				// so a shorter output would keep stale bytes at the end.
+				using (var fileStream = File.Create(newPath))
 				using (var writer = XmlWriter.Create(fileStream, _xmlSettings))
 				{
 					node.WriteTo(writer);

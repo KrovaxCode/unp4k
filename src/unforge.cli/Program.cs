@@ -74,7 +74,10 @@ namespace unforge.cli
 				{
 					if (Path.GetExtension(path) == ".dcb")
 					{
-						using var fileStream = File.OpenRead(path);
+						// Load fully into memory: the reader seeks via Position for every value,
+						// i.e. millions of small random reads across the ~340 MB file.
+						var bytes = File.ReadAllBytes(path);
+						using var fileStream = new MemoryStream(bytes, 0, bytes.Length, writable: false, publiclyVisible: true);
 						var df = new DataForge(fileStream);
 						df.Save(Path.ChangeExtension(path, "xml"));
 					}
